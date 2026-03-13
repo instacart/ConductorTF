@@ -54,6 +54,7 @@ variable "approval_steps" {
   type = list(object({
     approver_type                        = string
     approver_name                        = optional(string)
+    webhook_name                         = optional(string)
     enable_fallback_users                = optional(bool)
     user_ids                             = optional(list(string))
     fallback_user_ids                    = optional(list(string))
@@ -86,15 +87,30 @@ variable "conductorone_directory_app_id" {
 
 variable "opsgenie_app_id" {
   type        = string
-  description = "The unique C1 app ID for OpsGenie."
+  description = "The unique C1 app ID for OpsGenie. Only required if using Opsgenie On-Call approver type."
+  default     = ""
 }
 
 variable "conductorone_service_account_id" {
   type        = string
-  description = "The unique C1 user account ID used to integrate ConductorOne and Okta."
+  description = "The unique C1 user account ID used as a fallback service account."
 }
 
 variable "trigger" {
   type        = string
-  description = "This is an md5 hash used to trigger Terraform when changes are made to YAML files."
+  description = "An MD5 hash used to trigger Terraform when changes are made to external data files."
+}
+
+variable "all_entitlements" {
+  description = "Map of entitlement display names to their IDs."
+}
+
+variable "all_webhooks" {
+  description = "Map of webhook display names to their IDs."
+  default     = {}
+}
+
+variable "all_schedules" {
+  description = "Map of schedule display names to their IDs. Only required if using Opsgenie On-Call approver type."
+  default     = {}
 }

@@ -1,13 +1,6 @@
 locals {
-  catalog_data_json     = jsondecode(file("${path.cwd}/external/catalog.json"))["data"][0]
-  entitlement_data_json = jsondecode(file("${path.cwd}/external/entitlement.json"))["data"][0]
-  policy_data_json      = jsondecode(file("${path.cwd}/external/policy.json"))["data"][0]
-  schedule_data_json    = jsondecode(file("${path.cwd}/external/schedule.json"))["data"][0]
-
-  catalog_data     = tomap(local.catalog_data_json)
-  entitlement_data = tomap(local.entitlement_data_json)
-  policy_data      = tomap(local.policy_data_json)
-  schedule_data    = tomap(local.schedule_data_json)
+  entitlement_data = var.all_entitlements
+  webhook_data     = var.all_webhooks
 
   expressions_collected = [for step in var.approval_steps : step if step.approver_type == "Expression"]
   has_expressions       = true ? (length(local.expressions_collected) > 0) : false
@@ -30,6 +23,7 @@ locals {
           allow_reassignment          = step.allow_decision_reassignment
           require_reassignment_reason = step.require_decision_reassignment_reason
           require_approval_reason     = step.require_approval_reason
+          reassign_tasks_to_delegates = step.allow_decision_reassignment
           self_approval               = {}
         }
         }] : []
@@ -39,6 +33,7 @@ locals {
           allow_reassignment          = step.allow_decision_reassignment
           require_reassignment_reason = step.require_decision_reassignment_reason
           require_approval_reason     = step.require_approval_reason
+          reassign_tasks_to_delegates = step.allow_decision_reassignment
           manager_approval            = {}
         }
         }] : []
@@ -49,7 +44,7 @@ locals {
           require_reassignment_reason = step.require_decision_reassignment_reason
           require_approval_reason     = step.require_approval_reason
           expression_approval = {
-            "expressions" : [format("%s '%s', '%s')", "c1.user.v1.HasEntitlement(subject,", var.opsgenie_app_id, lookup(local.schedule_data, format("%s %s", step.approver_name, "schedule on-call")))]
+            "expressions" : [format("%s '%s', '%s')", "c1.user.v1.HasEntitlement(subject,", var.opsgenie_app_id, lookup(var.all_schedules, format("%s %s", step.approver_name, "schedule on-call")))]
           }
         }
         }] : []
@@ -68,11 +63,22 @@ locals {
         } }
         }] : []
       ],
+      [for step in var.approval_steps : step.approver_type == "Webhook" ? [{
+        approval = {
+          allow_reassignment          = step.allow_decision_reassignment
+          require_reassignment_reason = step.require_decision_reassignment_reason
+          require_approval_reason     = step.require_approval_reason
+          webhook_approval = {
+            webhook_id = lookup(local.webhook_data, step.webhook_name)
+        } }
+        }] : []
+      ],
       [for step in var.approval_steps : step.approver_type == "User" ? [{
         approval = {
           allow_reassignment          = step.allow_decision_reassignment
           require_reassignment_reason = step.require_decision_reassignment_reason
           require_approval_reason     = step.require_approval_reason
+          reassign_tasks_to_delegates = step.allow_decision_reassignment
           user_approval = {
             user_ids            = length(step.user_ids) > 0 ? [for user_id in step.user_ids : try(data.conductorone_user.user_lookup[user_id].id, "fallback_id")] : [var.conductorone_service_account_id]
             allow_self_approval = step.allow_self_review
@@ -105,7 +111,7 @@ locals {
             } : expression.approver_type == "Opsgenie On-Call" ? {
             "approval" = {
               "expression_approval" = {
-                "expressions" : [format("%s '%s', '%s')", "c1.user.v1.HasEntitlement(subject,", var.opsgenie_app_id, lookup(local.schedule_data, format("%s %s", expression.schedule_name, "schedule on-call")))]
+                "expressions" : [format("%s '%s', '%s')", "c1.user.v1.HasEntitlement(subject,", var.opsgenie_app_id, lookup(var.all_schedules, format("%s %s", expression.schedule_name, "schedule on-call")))]
               }
             }
             } : expression.approver_type == "Okta Group" ? {
@@ -121,7 +127,7 @@ locals {
                 "user_ids" = [for user_id in expression.user_ids : data.conductorone_user.expression_user_lookup[user_id].id]
               }
             }
-          } : { "approval" : "none" }
+          } : { "approval" = {} }
         ]
       ])
     }
@@ -132,4 +138,3 @@ locals {
     local.override_steps
   )
 }
-

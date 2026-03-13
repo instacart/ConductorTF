@@ -12,13 +12,24 @@ variable "app_description" {
   description = "Description of the application to be delegated."
 }
 
-// App owner email is required to pull C1 data source / app owner ID
 variable "app_owner_email" {
   type        = string
   description = "App Owner's full e-mail address. This may be used in downstream approval workflows."
 }
 
+variable "mirrored_app" {
+  type        = bool
+  description = "Is this a mirrored application strictly for UI purposes. (T/F)"
+  default     = false
+}
+
+variable "resource_type_name" {
+  type        = string
+  description = "Display name for the entitlement resource type on mirrored apps."
+  default     = "group"
+}
+
 variable "trigger" {
   type        = string
-  description = "This is an md5 hash used to trigger Terraform when changes are made to YAML files."
+  description = "An MD5 hash used to trigger Terraform when changes are made to external data files."
 }
